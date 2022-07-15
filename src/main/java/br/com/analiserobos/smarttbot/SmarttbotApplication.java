@@ -22,16 +22,14 @@ public class SmarttbotApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(SmarttbotApplication.class, args);
-		try (CSVReader reader = new CSVReader(new FileReader("C:\\Users\\fcost\\git\\smarttbot\\src\\main\\resources\\resultados\\Sao_Lourenco.csv"))) {						
-			logger.info("Iniciando Análise");
-			List<DiaOperacao> diasOperacao = new ArrayList<>();
-			diasOperacao = processaLinhas(reader);
+		String nomeArquivo = "Um_Maluco_Na_TV";
+		try (CSVReader reader = new CSVReader(new FileReader("C:\\Users\\fcost\\git\\smarttbot\\src\\main\\resources\\resultados\\"+nomeArquivo+".csv"))) {									
 			int diasGainsConsecutivos = 0;
 			int diasLossConsecutivos = 0;
 			Double mediaGainsConsecutivos = 0.0;
 			Double mediaLossConsecutivos = 0.0;
 			DiaOperacao diaAnterior = new DiaOperacao();
-			Collections.reverse(diasOperacao);
+			List<DiaOperacao> diasOperacao = processaOperacoes(reader);
 			for(DiaOperacao dia: diasOperacao) {
 				String diaSTR = dia.toString();
 				logger.info(diaSTR);
@@ -52,13 +50,44 @@ public class SmarttbotApplication {
 			}
 			String mediaGainsSTR = "Média de gains consecutivos: "+mediaGainsConsecutivos;
 			String mediaLossSTR = "Média de loss consecutivos: "+mediaLossConsecutivos;
-			logger.info(mediaGainsSTR);
-			logger.info(mediaLossSTR);			
+			logger.info("Iniciando Análise");
+			logger.info(nomeArquivo);
+			logger.info(mediaLossSTR);
+			logger.info(mediaGainsSTR);							
+			if (bomPontoMedio(diasOperacao, mediaLossConsecutivos.intValue(), true) || bomPontoMedio(diasOperacao, mediaGainsConsecutivos.intValue(), false)) {
+				logger.info("BOM PRA RODAR BASEADO EM MÉDIA SIMPLES");
+			} else {
+				logger.info("RUIM PRA RODAR BASEADO EM MÉDIA SIMPLES");
+			}
 			logger.info("Fim Análise");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
+		
+	private static List<DiaOperacao> processaOperacoes(CSVReader reader) throws NumberFormatException, IOException {
+		List<DiaOperacao> diasOperacao = processaLinhas(reader);		
+		Collections.reverse(diasOperacao);
+		return diasOperacao;
+	}
+	
+	private static boolean bomPontoMedio(List<DiaOperacao> diasOperacao, Integer quantidadeConsecutivas, boolean buscandoLoss) {
+		Collections.reverse(diasOperacao);
+		int qtdeLossConsecutivo = 0;
+		int qtdeGainConsecutivo = 0;
+		for (int i=0; i<= quantidadeConsecutivas; i++) {
+			boolean loss = buscandoLoss && diasOperacao.get(i).getResultado() < 0;
+			boolean gain = !buscandoLoss && diasOperacao.get(i).getResultado() > 0;
+			if (loss) {
+				qtdeLossConsecutivo++;
+			} else {
+				if (gain) {
+					qtdeGainConsecutivo++;
+				}
+			}
+		}
+		return qtdeLossConsecutivo > quantidadeConsecutivas || qtdeGainConsecutivo > quantidadeConsecutivas;	
+	}	
 	
 	private static List<DiaOperacao> processaLinhas(CSVReader reader) throws NumberFormatException, IOException {
 		//CSV: 6821290961";"17/09/2018 / 10:08:32";"WINV18";"V";"2";"75.575,00";"executada";"entrada";"2";"75.580,00";"-";"-";"-
