@@ -22,42 +22,47 @@ public class SmarttbotApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(SmarttbotApplication.class, args);
-		String nomeArquivo = "Um_Maluco_Na_TV";
+		String nomeArquivo = "Ouro Preto";
+		logger.info("Iniciando Análise");
 		try (CSVReader reader = new CSVReader(new FileReader("C:\\Users\\fcost\\git\\smarttbot\\src\\main\\resources\\resultados\\"+nomeArquivo+".csv"))) {									
-			int diasGainsConsecutivos = 0;
-			int diasLossConsecutivos = 0;
-			Double mediaGainsConsecutivos = 0.0;
-			Double mediaLossConsecutivos = 0.0;
+			Integer diasGainsConsecutivos = 0;
+			Integer diasLossConsecutivos = 0;
+			List<Integer> mediaGainsConsecutivos = new ArrayList<>();
+			List<Integer> mediaLossConsecutivos = new ArrayList<>();
 			DiaOperacao diaAnterior = new DiaOperacao();
 			List<DiaOperacao> diasOperacao = processaOperacoes(reader);
 			for(DiaOperacao dia: diasOperacao) {
 				String diaSTR = dia.toString();
-				logger.info(diaSTR);
 				if (dia.getResultado() > 0) {
 					if (diaAnterior.getResultado() < 0) {
-						mediaGainsConsecutivos = (mediaGainsConsecutivos + diasGainsConsecutivos)/2;
+						mediaGainsConsecutivos.add(diasGainsConsecutivos);
 						diasGainsConsecutivos = 0;
 					}
 					diasGainsConsecutivos++;
 				} else {
 					if (diaAnterior.getResultado() > 0) {
-						mediaLossConsecutivos = (mediaLossConsecutivos + diasLossConsecutivos) /2;
+						mediaLossConsecutivos.add(diasLossConsecutivos);
 						diasLossConsecutivos = 0;
 					}
 					diasLossConsecutivos++;
 				}
 				diaAnterior = dia;
+				logger.info(diaSTR);
 			}
-			String mediaGainsSTR = "Média de gains consecutivos: "+mediaGainsConsecutivos;
-			String mediaLossSTR = "Média de loss consecutivos: "+mediaLossConsecutivos;
-			logger.info("Iniciando Análise");
+			Double mediaGains = mediaGainsConsecutivos.stream().mapToInt(val -> val).average().orElse(0.0);
+			Double mediaLoss = mediaLossConsecutivos.stream().mapToInt(val -> val).average().orElse(0.0);
+			String mediaGainsSTR = "Média de gains consecutivos: "+mediaGains;
+			String mediaLossSTR = "Média de loss consecutivos: "+mediaLoss;
 			logger.info(nomeArquivo);
 			logger.info(mediaLossSTR);
 			logger.info(mediaGainsSTR);							
-			if (bomPontoMedio(diasOperacao, mediaLossConsecutivos.intValue(), true) || bomPontoMedio(diasOperacao, mediaGainsConsecutivos.intValue(), false)) {
+			if (bomPontoMedio(diasOperacao, mediaLoss.intValue(), true) || bomPontoMedio(diasOperacao, mediaGains.intValue(), false)) {
 				logger.info("BOM PRA RODAR BASEADO EM MÉDIA SIMPLES");
 			} else {
 				logger.info("RUIM PRA RODAR BASEADO EM MÉDIA SIMPLES");
+			}
+			if (recordeLoss(diasLossConsecutivos, mediaLossConsecutivos)) {
+				logger.info("ATENÇÃO! RECORDE DE LOSS CONSECUTIVO EM ANDAMENTO");
 			}
 			logger.info("Fim Análise");
 		} catch (Exception e) {
@@ -65,6 +70,10 @@ public class SmarttbotApplication {
 		}
 	}
 		
+	private static boolean recordeLoss(Integer diasLossConsecutivos, List<Integer> mediaLossConsecutivos) {
+		return mediaLossConsecutivos.contains(diasLossConsecutivos);
+	}
+
 	private static List<DiaOperacao> processaOperacoes(CSVReader reader) throws NumberFormatException, IOException {
 		List<DiaOperacao> diasOperacao = processaLinhas(reader);		
 		Collections.reverse(diasOperacao);
